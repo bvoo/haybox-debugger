@@ -59,7 +59,6 @@ const deviceInfo = ref<DeviceInfo>({
 // Add new refs for driver management
 const currentDriver = ref('');
 const availableDrivers = ref<string[]>([]);
-const selectedDriver = ref('WinUSB');
 
 // Add computed property for any mode connected
 const anyModeConnected = computed(
@@ -106,7 +105,6 @@ function updateDeviceStatus(status: DeviceStatus) {
   winusbInstalled.value = status.winusb_installed;
 }
 
-// Function to get device identifiers directly
 async function getDeviceIdentifiers() {
   try {
     const result = await invoke<DeviceInfo>('get_device_identifiers');
@@ -116,7 +114,6 @@ async function getDeviceIdentifiers() {
   }
 }
 
-// Function to get current driver info
 async function getDriverInfo() {
   try {
     const result = await invoke<DriverInfo>('get_driver_info');
@@ -124,34 +121,9 @@ async function getDriverInfo() {
     availableDrivers.value = result.available_drivers;
   } catch (error) {
     console.error('Error getting driver info:', error);
-    statusMessage.value = `Error getting driver info: ${error}`;
   }
 }
 
-// Function to replace driver
-async function replaceDriver() {
-  if (!confirm(`Are you sure you want to replace the current driver with ${selectedDriver.value}?`)) {
-    return;
-  }
-
-  try {
-    operationInProgress.value = true;
-    statusMessage.value = `Installing ${selectedDriver.value} driver...`;
-
-    const result = await invoke<DriverOperationResult>('replace_driver', {
-      driverName: selectedDriver.value,
-    });
-    statusMessage.value = result.message;
-    await checkDeviceStatus();
-    await getDriverInfo();
-  } catch (error) {
-    statusMessage.value = `Error installing driver: ${error}`;
-  } finally {
-    operationInProgress.value = false;
-  }
-}
-
-// Function to uninstall XInput driver
 async function uninstallXInput() {
   if (!confirm('Are you sure you want to uninstall the XInput driver?')) {
     return;
@@ -171,7 +143,6 @@ async function uninstallXInput() {
   }
 }
 
-// Function to reinstall XInput driver
 async function reinstallXInput() {
   try {
     operationInProgress.value = true;
@@ -187,7 +158,6 @@ async function reinstallXInput() {
   }
 }
 
-// Function to install WinUSB driver
 async function installWinUSBDriver() {
   if (!confirm('Are you sure you want to install the WinUSB driver for your GameCube adapter?')) {
     return;
@@ -238,99 +208,93 @@ onUnmounted(() => {
 
       <div class="grid grid-cols-2 gap-4 mb-4">
         <div class="flex items-center">
-          <div
-            class="w-3 h-3 rounded-full mr-2"
-            :class="hayboxDefaultModeConnected ? 'bg-[#8024cc]' : 'bg-destructive'"
-          ></div>
+          <div class="w-3 h-3 rounded-full mr-2"
+            :class="hayboxDefaultModeConnected ? 'bg-[#8024cc]' : 'bg-destructive'"></div>
           <div>
             <span>Default Mode</span>
             <div class="text-xs text-muted-foreground font-mono">VID: 0x2E8A, PID: 0x0004</div>
           </div>
         </div>
         <div class="flex justify-end items-center">
-          <span
-            class="px-3 py-1 rounded-full text-sm font-semibold shadow-sm"
-            :class="
-              hayboxDefaultModeConnected
-                ? 'bg-[#8024cc]/10 text-[#8024cc] border border-[#8024cc]/20'
-                : 'bg-destructive/10 text-red-500/80 border border-destructive/80'
-            "
-          >
+          <span class="px-3 py-1 rounded-full text-sm font-semibold shadow-sm" :class="hayboxDefaultModeConnected
+              ? 'bg-[#8024cc]/10 text-[#8024cc] border border-[#8024cc]/20'
+              : 'bg-destructive/10 text-red-500/80 border border-destructive/80'
+            ">
             {{ hayboxDefaultModeConnected ? 'Connected' : 'Not Connected' }}
           </span>
         </div>
 
         <div class="flex items-center">
-          <div
-            class="w-3 h-3 rounded-full mr-2"
-            :class="hayboxConfigModeConnected ? 'bg-[#8024cc]' : 'bg-destructive'"
-          ></div>
+          <div class="w-3 h-3 rounded-full mr-2" :class="hayboxConfigModeConnected ? 'bg-[#8024cc]' : 'bg-destructive'">
+          </div>
           <div>
             <span>Config Mode</span>
             <div class="text-xs text-muted-foreground font-mono">VID: 0x2E8A, PID: 0x000A</div>
           </div>
         </div>
         <div class="flex justify-end items-center">
-          <span
-            class="px-3 py-1 rounded-full text-sm font-semibold shadow-sm"
-            :class="
-              hayboxConfigModeConnected
-                ? 'bg-[#8024cc]/10 text-[#8024cc] border border-[#8024cc]/20'
-                : 'bg-destructive/10 text-red-500/80 border border-destructive/80'
-            "
-          >
+          <span class="px-3 py-1 rounded-full text-sm font-semibold shadow-sm" :class="hayboxConfigModeConnected
+              ? 'bg-[#8024cc]/10 text-[#8024cc] border border-[#8024cc]/20'
+              : 'bg-destructive/10 text-red-500/80 border border-destructive/80'
+            ">
             {{ hayboxConfigModeConnected ? 'Connected' : 'Not Connected' }}
           </span>
         </div>
 
         <div class="flex items-center">
-          <div
-            class="w-3 h-3 rounded-full mr-2"
-            :class="hayboxBootselModeConnected ? 'bg-[#8024cc]' : 'bg-destructive'"
-          ></div>
+          <div class="w-3 h-3 rounded-full mr-2"
+            :class="hayboxBootselModeConnected ? 'bg-[#8024cc]' : 'bg-destructive'"></div>
           <div>
             <span>BOOTSEL Mode</span>
             <div class="text-xs text-muted-foreground font-mono">VID: 0x2E8A, PID: 0x0003</div>
           </div>
         </div>
         <div class="flex justify-end items-center">
-          <span
-            class="px-3 py-1 rounded-full text-sm font-semibold shadow-sm"
-            :class="
-              hayboxBootselModeConnected
-                ? 'bg-[#8024cc]/10 text-[#8024cc] border border-[#8024cc]/20'
-                : 'bg-destructive/10 text-red-500/80 border border-destructive/80'
-            "
-          >
+          <span class="px-3 py-1 rounded-full text-sm font-semibold shadow-sm" :class="hayboxBootselModeConnected
+              ? 'bg-[#8024cc]/10 text-[#8024cc] border border-[#8024cc]/20'
+              : 'bg-destructive/10 text-red-500/80 border border-destructive/80'
+            ">
             {{ hayboxBootselModeConnected ? 'Connected' : 'Not Connected' }}
+          </span>
+        </div>
+
+        <div class="flex items-center">
+          <div class="w-3 h-3 rounded-full mr-2" :class="hayboxSwitchModeConnected ? 'bg-[#8024cc]' : 'bg-destructive'">
+          </div>
+          <div>
+            <span>Switch Mode</span>
+            <div class="text-xs text-muted-foreground font-mono">VID: 0x2E8A, PID: 0x0005</div>
+          </div>
+        </div>
+        <div class="flex justify-end items-center">
+          <span class="px-3 py-1 rounded-full text-sm font-semibold shadow-sm" :class="hayboxSwitchModeConnected
+              ? 'bg-[#8024cc]/10 text-[#8024cc] border border-[#8024cc]/20'
+              : 'bg-destructive/10 text-red-500/80 border border-destructive/80'
+            ">
+            {{ hayboxSwitchModeConnected ? 'Connected' : 'Not Connected' }}
           </span>
         </div>
       </div>
     </div>
+
 
     <div class="p-6 rounded-lg shadow mb-6 bg-card text-card-foreground border border-border">
       <h2 class="text-xl font-semibold mb-4">GameCube Adapter Status</h2>
 
       <div class="grid grid-cols-2 gap-4 mb-4">
         <div class="flex items-center">
-          <div
-            class="w-3 h-3 rounded-full mr-2"
-            :class="gamecubeAdapterConnected ? 'bg-[#8024cc]' : 'bg-destructive'"
-          ></div>
+          <div class="w-3 h-3 rounded-full mr-2" :class="gamecubeAdapterConnected ? 'bg-[#8024cc]' : 'bg-destructive'">
+          </div>
           <div>
             <span>GameCube Adapter</span>
             <div class="text-xs text-muted-foreground font-mono">VID: 0x057E, PID: 0x0337</div>
           </div>
         </div>
         <div class="flex justify-end items-center">
-          <span
-            class="px-3 py-1 rounded-full text-sm font-semibold shadow-sm"
-            :class="
-              gamecubeAdapterConnected
-                ? 'bg-[#8024cc]/10 text-[#8024cc] border border-[#8024cc]/20'
-                : 'bg-destructive/10 text-red-500/80 border border-destructive/80'
-            "
-          >
+          <span class="px-3 py-1 rounded-full text-sm font-semibold shadow-sm" :class="gamecubeAdapterConnected
+              ? 'bg-[#8024cc]/10 text-[#8024cc] border border-[#8024cc]/20'
+              : 'bg-destructive/10 text-red-500/80 border border-destructive/80'
+            ">
             {{ gamecubeAdapterConnected ? 'Connected' : 'Not Connected' }}
           </span>
         </div>
@@ -340,14 +304,10 @@ onUnmounted(() => {
           <span>WinUSB Driver</span>
         </div>
         <div class="flex justify-end items-center">
-          <span
-            class="px-3 py-1 rounded-full text-sm font-semibold shadow-sm"
-            :class="
-              winusbInstalled
-                ? 'bg-[#8024cc]/10 text-[#8024cc] border border-[#8024cc]/20'
-                : 'bg-destructive/10 text-red-500/80 border border-destructive/80'
-            "
-          >
+          <span class="px-3 py-1 rounded-full text-sm font-semibold shadow-sm" :class="winusbInstalled
+              ? 'bg-[#8024cc]/10 text-[#8024cc] border border-[#8024cc]/20'
+              : 'bg-destructive/10 text-red-500/80 border border-destructive/80'
+            ">
             {{ winusbInstalled ? 'Installed' : 'Not Installed' }}
           </span>
         </div>
@@ -355,27 +315,56 @@ onUnmounted(() => {
 
       <div class="mt-6">
         <p class="mb-4 text-sm text-muted-foreground">
-          Install WinUSB driver for your GameCube adapter to use it with Dolphin emulator. This operation requires
+          Install the WinUSB driver for your GameCube adapter to use it with Dolphin. This operation requires
           administrator privileges.
         </p>
 
-        <Button
-          @click="installWinUSBDriver"
-          variant="default"
-          :disabled="operationInProgress || !gamecubeAdapterConnected || winusbInstalled"
-        >
+        <Button @click="installWinUSBDriver" variant="default"
+          :disabled="operationInProgress || !gamecubeAdapterConnected || winusbInstalled">
           {{ winusbInstalled ? 'WinUSB Driver Already Installed' : 'Install WinUSB Driver' }}
         </Button>
       </div>
     </div>
 
-    <div
-      v-if="statusMessage"
-      class="mt-4 p-4 rounded-lg"
-      :class="
-        statusMessage.includes('Error') ? 'bg-destructive/20 text-red-500/80' : 'bg-primary/20 text-primary-foreground'
-      "
-    >
+    <!-- New XInput Driver Card -->
+    <div class="p-6 rounded-lg shadow mb-6 bg-card text-card-foreground border border-border">
+      <h2 class="text-xl font-semibold mb-4">XInput Driver Status</h2>
+
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <div class="flex items-center">
+          <div class="w-3 h-3 rounded-full mr-2" :class="xinputInstalled ? 'bg-[#8024cc]' : 'bg-destructive'"></div>
+          <span>XInput Driver</span>
+        </div>
+        <div class="flex justify-end items-center">
+          <span class="px-3 py-1 rounded-full text-sm font-semibold shadow-sm" :class="xinputInstalled
+              ? 'bg-[#8024cc]/10 text-[#8024cc] border border-[#8024cc]/20'
+              : 'bg-destructive/10 text-red-500/80 border border-destructive/80'
+            ">
+            {{ xinputInstalled ? 'Installed' : 'Not Installed' }}
+          </span>
+        </div>
+      </div>
+
+      <div class="mt-6">
+        <p class="mb-4 text-sm text-muted-foreground">
+          Manage the XInput driver for your Haybox controller. Uninstalling may help resolve conflicts, while
+          reinstalling can fix driver issues. These operations require administrator privileges.
+        </p>
+
+        <div class="flex gap-4">
+          <Button @click="uninstallXInput" variant="destructive"
+            :disabled="operationInProgress || !xinputInstalled || !anyModeConnected">
+            Uninstall XInput Driver
+          </Button>
+          <Button @click="reinstallXInput" variant="ghost"
+            :disabled="operationInProgress || (!xinputInstalled && !anyModeConnected)">
+            {{ xinputInstalled ? 'Reinstall XInput Driver' : 'Install XInput Driver' }}
+          </Button>
+        </div>
+      </div>
+    </div>
+    <div v-if="statusMessage" class="mt-4 p-4 rounded-lg" :class="statusMessage.includes('Error') ? 'bg-destructive/20 text-red-500/80' : 'bg-primary/20 text-primary-foreground'
+      ">
       {{ statusMessage }}
     </div>
   </main>

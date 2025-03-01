@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "tauri-template",
+  "productName": "haybox-debugger",
   "version": "0.1.0",
-  "identifier": "com.tauri-template.app",
+  "identifier": "com.haybox-debugger.app",
   "build": {
     "beforeDevCommand": "yarn dev",
     "devUrl": "http://localhost:1420",
@@ -12,9 +12,9 @@
   "app": {
     "windows": [
       {
-        "title": "tauri-template",
+        "title": "haybox-debugger",
         "width": 800,
-        "height": 600
+        "height": 1070
       }
     ],
     "security": {
