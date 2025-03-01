@@ -62,11 +62,12 @@ const availableDrivers = ref<string[]>([]);
 const selectedDriver = ref('WinUSB');
 
 // Add computed property for any mode connected
-const anyModeConnected = computed(() => 
-  hayboxDefaultModeConnected.value || 
-  hayboxConfigModeConnected.value || 
-  hayboxBootselModeConnected.value || 
-  hayboxSwitchModeConnected.value
+const anyModeConnected = computed(
+  () =>
+    hayboxDefaultModeConnected.value ||
+    hayboxConfigModeConnected.value ||
+    hayboxBootselModeConnected.value ||
+    hayboxSwitchModeConnected.value,
 );
 
 // Function to get device status directly
@@ -76,13 +77,13 @@ async function checkDeviceStatus(isManualRefresh = false) {
       operationInProgress.value = true;
       statusMessage.value = 'Checking device status...';
     }
-    
+
     const result = await invoke<DeviceStatus>('get_device_status');
     updateDeviceStatus(result);
-    
+
     if (isManualRefresh) {
       statusMessage.value = 'Device status refreshed';
-      setTimeout(() => statusMessage.value = '', 2000);
+      setTimeout(() => (statusMessage.value = ''), 2000);
     }
   } catch (error) {
     console.error('Error checking devices:', error);
@@ -132,13 +133,13 @@ async function replaceDriver() {
   if (!confirm(`Are you sure you want to replace the current driver with ${selectedDriver.value}?`)) {
     return;
   }
-  
+
   try {
     operationInProgress.value = true;
     statusMessage.value = `Installing ${selectedDriver.value} driver...`;
-    
+
     const result = await invoke<DriverOperationResult>('replace_driver', {
-      driverName: selectedDriver.value
+      driverName: selectedDriver.value,
     });
     statusMessage.value = result.message;
     await checkDeviceStatus();
@@ -155,11 +156,11 @@ async function uninstallXInput() {
   if (!confirm('Are you sure you want to uninstall the XInput driver?')) {
     return;
   }
-  
+
   try {
     operationInProgress.value = true;
     statusMessage.value = 'Uninstalling XInput driver...';
-    
+
     const result = await invoke<DriverOperationResult>('uninstall_xinput');
     statusMessage.value = result.message;
     await checkDeviceStatus();
@@ -175,7 +176,7 @@ async function reinstallXInput() {
   try {
     operationInProgress.value = true;
     statusMessage.value = 'Reinstalling XInput driver...';
-    
+
     const result = await invoke<DriverOperationResult>('reinstall_xinput');
     statusMessage.value = result.message;
     await checkDeviceStatus();
@@ -191,11 +192,11 @@ async function installWinUSBDriver() {
   if (!confirm('Are you sure you want to install the WinUSB driver for your GameCube adapter?')) {
     return;
   }
-  
+
   try {
     operationInProgress.value = true;
     statusMessage.value = 'Installing WinUSB driver...';
-    
+
     const result = await invoke<DriverOperationResult>('install_winusb');
     statusMessage.value = result.message;
     await checkDeviceStatus();
@@ -214,7 +215,7 @@ onMounted(async () => {
   await getDeviceIdentifiers();
   await checkDeviceStatus();
   await getDriverInfo();
-  
+
   // Set up polling every second
   pollInterval = setInterval(() => checkDeviceStatus(false), 500);
 });
@@ -231,58 +232,76 @@ onUnmounted(() => {
 <template>
   <main class="flex flex-col p-8 max-w-2xl mx-auto">
     <h1 class="text-3xl font-bold mb-6 text-center text-foreground">Haybox Debugger</h1>
-    
+
     <div class="p-6 rounded-lg shadow mb-6 bg-card text-card-foreground border border-border">
       <h2 class="text-xl font-semibold mb-4">Device Status</h2>
-      
+
       <div class="grid grid-cols-2 gap-4 mb-4">
         <div class="flex items-center">
-          <div class="w-3 h-3 rounded-full mr-2" 
-               :class="hayboxDefaultModeConnected ? 'bg-[#8024cc]' : 'bg-destructive'"></div>
+          <div
+            class="w-3 h-3 rounded-full mr-2"
+            :class="hayboxDefaultModeConnected ? 'bg-[#8024cc]' : 'bg-destructive'"
+          ></div>
           <div>
             <span>Default Mode</span>
-            <div class="text-xs text-muted-foreground font-mono">
-              VID: 0x2E8A, PID: 0x0004
-            </div>
+            <div class="text-xs text-muted-foreground font-mono">VID: 0x2E8A, PID: 0x0004</div>
           </div>
         </div>
         <div class="flex justify-end items-center">
-          <span class="px-3 py-1 rounded-full text-sm font-semibold shadow-sm" 
-                :class="hayboxDefaultModeConnected ? 'bg-[#8024cc]/10 text-[#8024cc] border border-[#8024cc]/20' : 'bg-destructive/10 text-red-500/80 border border-destructive/80'">
+          <span
+            class="px-3 py-1 rounded-full text-sm font-semibold shadow-sm"
+            :class="
+              hayboxDefaultModeConnected
+                ? 'bg-[#8024cc]/10 text-[#8024cc] border border-[#8024cc]/20'
+                : 'bg-destructive/10 text-red-500/80 border border-destructive/80'
+            "
+          >
             {{ hayboxDefaultModeConnected ? 'Connected' : 'Not Connected' }}
           </span>
         </div>
 
         <div class="flex items-center">
-          <div class="w-3 h-3 rounded-full mr-2" 
-               :class="hayboxConfigModeConnected ? 'bg-[#8024cc]' : 'bg-destructive'"></div>
+          <div
+            class="w-3 h-3 rounded-full mr-2"
+            :class="hayboxConfigModeConnected ? 'bg-[#8024cc]' : 'bg-destructive'"
+          ></div>
           <div>
             <span>Config Mode</span>
-            <div class="text-xs text-muted-foreground font-mono">
-              VID: 0x2E8A, PID: 0x000A
-            </div>
+            <div class="text-xs text-muted-foreground font-mono">VID: 0x2E8A, PID: 0x000A</div>
           </div>
         </div>
         <div class="flex justify-end items-center">
-          <span class="px-3 py-1 rounded-full text-sm font-semibold shadow-sm" 
-                :class="hayboxConfigModeConnected ? 'bg-[#8024cc]/10 text-[#8024cc] border border-[#8024cc]/20' : 'bg-destructive/10 text-red-500/80 border border-destructive/80'">
+          <span
+            class="px-3 py-1 rounded-full text-sm font-semibold shadow-sm"
+            :class="
+              hayboxConfigModeConnected
+                ? 'bg-[#8024cc]/10 text-[#8024cc] border border-[#8024cc]/20'
+                : 'bg-destructive/10 text-red-500/80 border border-destructive/80'
+            "
+          >
             {{ hayboxConfigModeConnected ? 'Connected' : 'Not Connected' }}
           </span>
         </div>
 
         <div class="flex items-center">
-          <div class="w-3 h-3 rounded-full mr-2" 
-               :class="hayboxBootselModeConnected ? 'bg-[#8024cc]' : 'bg-destructive'"></div>
+          <div
+            class="w-3 h-3 rounded-full mr-2"
+            :class="hayboxBootselModeConnected ? 'bg-[#8024cc]' : 'bg-destructive'"
+          ></div>
           <div>
             <span>BOOTSEL Mode</span>
-            <div class="text-xs text-muted-foreground font-mono">
-              VID: 0x2E8A, PID: 0x0003
-            </div>
+            <div class="text-xs text-muted-foreground font-mono">VID: 0x2E8A, PID: 0x0003</div>
           </div>
         </div>
         <div class="flex justify-end items-center">
-          <span class="px-3 py-1 rounded-full text-sm font-semibold shadow-sm" 
-                :class="hayboxBootselModeConnected ? 'bg-[#8024cc]/10 text-[#8024cc] border border-[#8024cc]/20' : 'bg-destructive/10 text-red-500/80 border border-destructive/80'">
+          <span
+            class="px-3 py-1 rounded-full text-sm font-semibold shadow-sm"
+            :class="
+              hayboxBootselModeConnected
+                ? 'bg-[#8024cc]/10 text-[#8024cc] border border-[#8024cc]/20'
+                : 'bg-destructive/10 text-red-500/80 border border-destructive/80'
+            "
+          >
             {{ hayboxBootselModeConnected ? 'Connected' : 'Not Connected' }}
           </span>
         </div>
@@ -291,33 +310,44 @@ onUnmounted(() => {
 
     <div class="p-6 rounded-lg shadow mb-6 bg-card text-card-foreground border border-border">
       <h2 class="text-xl font-semibold mb-4">GameCube Adapter Status</h2>
-      
+
       <div class="grid grid-cols-2 gap-4 mb-4">
         <div class="flex items-center">
-          <div class="w-3 h-3 rounded-full mr-2" 
-               :class="gamecubeAdapterConnected ? 'bg-[#8024cc]' : 'bg-destructive'"></div>
+          <div
+            class="w-3 h-3 rounded-full mr-2"
+            :class="gamecubeAdapterConnected ? 'bg-[#8024cc]' : 'bg-destructive'"
+          ></div>
           <div>
             <span>GameCube Adapter</span>
-            <div class="text-xs text-muted-foreground font-mono">
-              VID: 0x057E, PID: 0x0337
-            </div>
+            <div class="text-xs text-muted-foreground font-mono">VID: 0x057E, PID: 0x0337</div>
           </div>
         </div>
         <div class="flex justify-end items-center">
-          <span class="px-3 py-1 rounded-full text-sm font-semibold shadow-sm" 
-                :class="gamecubeAdapterConnected ? 'bg-[#8024cc]/10 text-[#8024cc] border border-[#8024cc]/20' : 'bg-destructive/10 text-red-500/80 border border-destructive/80'">
+          <span
+            class="px-3 py-1 rounded-full text-sm font-semibold shadow-sm"
+            :class="
+              gamecubeAdapterConnected
+                ? 'bg-[#8024cc]/10 text-[#8024cc] border border-[#8024cc]/20'
+                : 'bg-destructive/10 text-red-500/80 border border-destructive/80'
+            "
+          >
             {{ gamecubeAdapterConnected ? 'Connected' : 'Not Connected' }}
           </span>
         </div>
 
         <div class="flex items-center">
-          <div class="w-3 h-3 rounded-full mr-2" 
-               :class="winusbInstalled ? 'bg-[#8024cc]' : 'bg-destructive'"></div>
+          <div class="w-3 h-3 rounded-full mr-2" :class="winusbInstalled ? 'bg-[#8024cc]' : 'bg-destructive'"></div>
           <span>WinUSB Driver</span>
         </div>
         <div class="flex justify-end items-center">
-          <span class="px-3 py-1 rounded-full text-sm font-semibold shadow-sm" 
-                :class="winusbInstalled ? 'bg-[#8024cc]/10 text-[#8024cc] border border-[#8024cc]/20' : 'bg-destructive/10 text-red-500/80 border border-destructive/80'">
+          <span
+            class="px-3 py-1 rounded-full text-sm font-semibold shadow-sm"
+            :class="
+              winusbInstalled
+                ? 'bg-[#8024cc]/10 text-[#8024cc] border border-[#8024cc]/20'
+                : 'bg-destructive/10 text-red-500/80 border border-destructive/80'
+            "
+          >
             {{ winusbInstalled ? 'Installed' : 'Not Installed' }}
           </span>
         </div>
@@ -325,19 +355,27 @@ onUnmounted(() => {
 
       <div class="mt-6">
         <p class="mb-4 text-sm text-muted-foreground">
-          Install WinUSB driver for your GameCube adapter to use it with Dolphin emulator.
-          This operation requires administrator privileges.
+          Install WinUSB driver for your GameCube adapter to use it with Dolphin emulator. This operation requires
+          administrator privileges.
         </p>
-        
-        <Button @click="installWinUSBDriver" variant="default" 
-                :disabled="operationInProgress || !gamecubeAdapterConnected || winusbInstalled">
+
+        <Button
+          @click="installWinUSBDriver"
+          variant="default"
+          :disabled="operationInProgress || !gamecubeAdapterConnected || winusbInstalled"
+        >
           {{ winusbInstalled ? 'WinUSB Driver Already Installed' : 'Install WinUSB Driver' }}
         </Button>
       </div>
     </div>
-    
-    <div v-if="statusMessage" class="mt-4 p-4 rounded-lg" 
-         :class="statusMessage.includes('Error') ? 'bg-destructive/20 text-red-500/80' : 'bg-primary/20 text-primary-foreground'">
+
+    <div
+      v-if="statusMessage"
+      class="mt-4 p-4 rounded-lg"
+      :class="
+        statusMessage.includes('Error') ? 'bg-destructive/20 text-red-500/80' : 'bg-primary/20 text-primary-foreground'
+      "
+    >
       {{ statusMessage }}
     </div>
   </main>
@@ -347,8 +385,15 @@ onUnmounted(() => {
 body {
   margin: 0;
   padding: 0;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 
-    'Helvetica Neue', Arial, sans-serif;
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    sans-serif;
   background-color: var(--color-background);
   color: var(--color-foreground);
 }
