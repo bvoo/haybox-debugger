@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button';
 import { invoke } from '@tauri-apps/api/core';
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 
-// Type definitions for the data returned from Tauri commands
 interface DeviceStatus {
   default_mode_connected: boolean;
   config_mode_connected: boolean;
@@ -37,7 +36,6 @@ interface DriverInfo {
   available_drivers: string[];
 }
 
-// Device status references
 const hayboxDefaultModeConnected = ref(false);
 const hayboxConfigModeConnected = ref(false);
 const hayboxBootselModeConnected = ref(false);
@@ -48,7 +46,6 @@ const winusbInstalled = ref(false);
 const statusMessage = ref('');
 const operationInProgress = ref(false);
 
-// Centralized device information from backend
 const deviceInfo = ref<DeviceInfo>({
   default_mode: { vid: 0, pid: 0, name: '' },
   config_mode: { vid: 0, pid: 0, name: '' },
@@ -56,11 +53,9 @@ const deviceInfo = ref<DeviceInfo>({
   switch_mode: { vid: 0, pid: 0, name: '' },
 });
 
-// Add new refs for driver management
 const currentDriver = ref('');
 const availableDrivers = ref<string[]>([]);
 
-// Add computed property for any mode connected
 const anyModeConnected = computed(
   () =>
     hayboxDefaultModeConnected.value ||
@@ -69,7 +64,6 @@ const anyModeConnected = computed(
     hayboxSwitchModeConnected.value,
 );
 
-// Function to get device status directly
 async function checkDeviceStatus(isManualRefresh = false) {
   try {
     if (isManualRefresh) {
@@ -94,7 +88,6 @@ async function checkDeviceStatus(isManualRefresh = false) {
   }
 }
 
-// Function to update device status from event or direct check
 function updateDeviceStatus(status: DeviceStatus) {
   hayboxDefaultModeConnected.value = status.default_mode_connected;
   hayboxConfigModeConnected.value = status.config_mode_connected;
@@ -177,22 +170,17 @@ async function installWinUSBDriver() {
   }
 }
 
-// Initialize data and setup event listeners on mount
 let pollInterval: number;
 
 onMounted(async () => {
-  // Get initial device identifiers and status
   await getDeviceIdentifiers();
   await checkDeviceStatus();
   await getDriverInfo();
 
-  // Set up polling every second
   pollInterval = setInterval(() => checkDeviceStatus(false), 500);
 });
 
-// Cleanup event listeners on unmount
 onUnmounted(() => {
-  // Clean up polling interval
   if (pollInterval) {
     clearInterval(pollInterval);
   }
@@ -277,7 +265,6 @@ onUnmounted(() => {
       </div>
     </div>
 
-
     <div class="p-6 rounded-lg shadow mb-6 bg-card text-card-foreground border border-border">
       <h2 class="text-xl font-semibold mb-4">GameCube Adapter Status</h2>
 
@@ -326,7 +313,6 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- New XInput Driver Card -->
     <div class="p-6 rounded-lg shadow mb-6 bg-card text-card-foreground border border-border">
       <h2 class="text-xl font-semibold mb-4">XInput Driver Status</h2>
 

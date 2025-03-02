@@ -10,4 +10,4 @@ cd /d "%~dp0"
 echo Using WDK path: !WDK_DIR!
 echo Using WDF path: !WDF_PATH!
 
-yarn tauri build
+yarn tauri dev

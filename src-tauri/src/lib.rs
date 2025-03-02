@@ -4,7 +4,6 @@ use std::process::Command;
 use rusb::UsbContext;
 use serde::{Deserialize, Serialize};
 
-// Define device identifiers in a centralized structure
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct UsbDeviceInfo {
   pub vid: u16,
@@ -12,7 +11,6 @@ pub struct UsbDeviceInfo {
   pub name: String,
 }
 
-// All device identifiers in one place
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DeviceIdentifiers {
   pub default_mode: UsbDeviceInfo,
@@ -22,26 +20,117 @@ pub struct DeviceIdentifiers {
   pub gamecube_mode: UsbDeviceInfo,
 }
 
-// Define structures for WinUSB driver installation
 #[derive(Debug)]
 pub struct Config {
-  vendor_id: u16,
-  product_id: u16,
-  description: String,
-  manufacturer: String,
+  pub vendor_id: u16,
+  pub product_id: u16,
+  pub description: String,
+  pub manufacturer: String,
 }
 
 impl Config {
   pub fn prepare_driver(&self) -> Result<(), PrepareDriverError> {
-    // In a real implementation, this would prepare driver files
-    // For now, just a stub implementation that succeeds
+    if !check_admin_rights() {
+      return Err(PrepareDriverError::PermissionDenied);
+    }
+
+    let temp_dir = match std::env::temp_dir().join("haybox_drivers") {
+      path => {
+        if !path.exists() {
+          std::fs::create_dir_all(&path)
+            .map_err(|e| PrepareDriverError::UnknownError(format!("Failed to create temp directory: {}", e)))?;
+        }
+        path
+      }
+    };
+
+    let exe_dir = std::env::current_exe()
+      .map_err(|e| PrepareDriverError::UnknownError(format!("Could not find executable path: {}", e)))?
+      .parent()
+      .ok_or_else(|| PrepareDriverError::UnknownError("Could not find executable parent directory".to_string()))?
+      .to_path_buf();
+
+    let driver_resource_path = exe_dir.join("driver_resources");
+    if !driver_resource_path.exists() {
+      return Err(PrepareDriverError::DriverNotFound);
+    }
+
+    let inf_template_path = driver_resource_path.join("winusb_template.inf");
+    if !inf_template_path.exists() {
+      return Err(PrepareDriverError::DriverNotFound);
+    }
+
+    let template_content = std::fs::read_to_string(&inf_template_path)
+      .map_err(|e| PrepareDriverError::UnknownError(format!("Failed to read INF template: {}", e)))?;
+
+    let inf_content = template_content
+      .replace("{{VID}}", &format!("{:04X}", self.vendor_id))
+      .replace("{{PID}}", &format!("{:04X}", self.product_id))
+      .replace("{{DESCRIPTION}}", &self.description)
+      .replace("{{MANUFACTURER}}", &self.manufacturer);
+
+    let inf_path = temp_dir.join("winusb_driver.inf");
+    std::fs::write(&inf_path, inf_content)
+      .map_err(|e| PrepareDriverError::UnknownError(format!("Failed to write INF file: {}", e)))?;
+
+    for file_name in ["WinUSBCoInstaller2.dll", "WdfCoInstaller01011.dll"] {
+      let source_path = driver_resource_path.join(file_name);
+      if source_path.exists() {
+        let target_path = temp_dir.join(file_name);
+        std::fs::copy(&source_path, &target_path)
+          .map_err(|e| PrepareDriverError::UnknownError(format!("Failed to copy {}: {}", file_name, e)))?;
+      } else {
+        return Err(PrepareDriverError::DriverNotFound);
+      }
+    }
+
     Ok(())
   }
   
   pub fn install_driver(&self) -> Result<(), String> {
-    // This would actually install the driver using Windows APIs or tools
-    // For this stub version, we'll simulate success
-    // In a real implementation, you would call something like zadig or libwdi
+    if !check_admin_rights() {
+      return Err("Administrator privileges required".to_string());
+    }
+
+    let temp_dir = std::env::temp_dir().join("haybox_drivers");
+    let inf_path = temp_dir.join("winusb_driver.inf");
+    
+    if !inf_path.exists() {
+      return Err("Driver INF file not found. Did you call prepare_driver first?".to_string());
+    }
+
+    let inf_path_str = inf_path.to_string_lossy().to_string();
+    
+    let output = Command::new("pnputil")
+      .args(&["/add-driver", &inf_path_str, "/install"])
+      .output()
+      .map_err(|e| format!("Failed to execute pnputil: {}", e))?;
+
+    if !output.status.success() {
+      let error_message = String::from_utf8_lossy(&output.stderr);
+      return Err(format!("pnputil failed: {}", error_message));
+    }
+
+    let exe_dir = std::env::current_exe()
+      .map_err(|e| format!("Could not find executable path: {}", e))?
+      .parent()
+      .ok_or_else(|| "Could not find executable parent directory".to_string())?
+      .to_path_buf();
+    
+    let devcon_path = exe_dir.join("driver_resources").join("devcon.exe");
+    
+    if devcon_path.exists() {
+      let hw_id = format!("USB\\VID_{:04X}&PID_{:04X}", self.vendor_id, self.product_id);
+      
+      let devcon_result = Command::new(&devcon_path)
+        .args(&["update", &inf_path_str, &hw_id])
+        .output();
+        
+      if let Err(e) = devcon_result {
+        println!("Warning: devcon failed: {}", e);
+      }
+    }
+
     Ok(())
   }
 }
@@ -112,7 +201,6 @@ impl std::fmt::Display for PrepareDriverError {
 
 impl std::error::Error for PrepareDriverError {}
 
-// Define the devices
 lazy_static::lazy_static! {
   static ref DEVICES: DeviceIdentifiers = DeviceIdentifiers {
     default_mode: UsbDeviceInfo {
@@ -267,14 +355,13 @@ fn reinstall_xinput(_app_handle: tauri::AppHandle) -> DriverOperationResult {
 
 #[tauri::command(rename_all = "snake_case")]
 fn install_winusb() -> DriverOperationResult {
-  if (!check_admin_rights()) {
+  if !check_admin_rights() {
     return DriverOperationResult {
       success: false,
       message: "Administrator privileges required".to_string(),
     };
   }
 
-  // Check if the device is connected first
   let gamecube_mode = &DEVICES.gamecube_mode;
   let is_connected = match rusb::Context::new() {
     Ok(context) => match context.devices() {
@@ -290,14 +377,13 @@ fn install_winusb() -> DriverOperationResult {
     Err(_) => false,
   };
 
-  if (!is_connected) {
+  if !is_connected {
     return DriverOperationResult {
       success: false,
       message: "GameCube adapter not found. Please make sure it is connected and in the correct mode.".to_string(),
     };
   }
 
-  // Configure WinUSB driver installation
   let config = ConfigBuilder::new()
     .vendor_id(gamecube_mode.vid)
     .product_id(gamecube_mode.pid)
@@ -319,7 +405,6 @@ fn install_winusb() -> DriverOperationResult {
 
 fn install_winusb_driver(config: &Config) -> Result<(), String> {
   match config.prepare_driver() {
-    // Driver files are prepared, now install them
     Ok(_) => match config.install_driver() {
       Ok(_) => Ok(()),
       Err(e) => Err(format!("Failed to install driver: {}", e)),
@@ -347,7 +432,7 @@ fn check_admin_rights() -> bool {
 }
 
 fn uninstall_xinput_driver() -> Result<(), String> {
-  if (!check_admin_rights()) {
+  if !check_admin_rights() {
     return Err("Administrator privileges required".to_string());
   }
 
@@ -357,7 +442,7 @@ fn uninstall_xinput_driver() -> Result<(), String> {
 
   let xinput_path = system32_path.join("xinput1_4.dll");
 
-  if (xinput_path.exists()) {
+  if xinput_path.exists() {
     let backup_path = xinput_path.with_extension("dll.bak");
     std::fs::rename(&xinput_path, &backup_path).map_err(|e| format!("Failed to rename xinput1_4.dll: {}", e))?;
   }
@@ -366,7 +451,7 @@ fn uninstall_xinput_driver() -> Result<(), String> {
 }
 
 fn reinstall_xinput_driver() -> Result<(), String> {
-  if (!check_admin_rights()) {
+  if !check_admin_rights() {
     return Err("Administrator privileges required".to_string());
   }
 
@@ -376,7 +461,6 @@ fn reinstall_xinput_driver() -> Result<(), String> {
 
   let xinput_path = system32_path.join("xinput1_4.dll");
 
-  // Get the DLL from the public directory next to the executable
   let exe_dir = std::env::current_exe()
     .map_err(|e| format!("Could not find executable path: {}", e))?
     .parent()
@@ -385,23 +469,18 @@ fn reinstall_xinput_driver() -> Result<(), String> {
 
   let source_dll = exe_dir.join("XInput1_4.dll");
 
-  // Copy the DLL from public dir to System32
   std::fs::copy(&source_dll, &xinput_path).map_err(|e| format!("Failed to copy xinput1_4.dll: {}", e))?;
 
   Ok(())
 }
 
-// Define a struct for WMI query results
 #[derive(Debug, Deserialize)]
 struct WmiPnPEntity {
-  #[serde(rename = "DeviceID")]
-  device_id: String,
   #[serde(rename = "DriverProvider")]
   driver_provider: Option<String>,
 }
 
 fn check_winusb_driver(vendor_id: u16, product_id: u16) -> Result<bool, Box<dyn std::error::Error>> {
-  // First check if the device is connected at all
   let is_connected = match rusb::Context::new() {
     Ok(context) => match context.devices() {
       Ok(device_list) => device_list.iter().any(|device| {
@@ -416,25 +495,23 @@ fn check_winusb_driver(vendor_id: u16, product_id: u16) -> Result<bool, Box<dyn 
     Err(_) => false,
   };
 
-  // If device isn't connected, don't bother checking WMI
   if !is_connected {
     return Ok(false);
   }
 
-  // Device is connected, now check its driver via WMI
   let wmi_con = unsafe { wmi::COMLibrary::assume_initialized() };
   
   let wmi_connection = wmi::WMIConnection::new(wmi_con)
     .map_err(|e| format!("Failed to initialize WMI: {}", e))?;
 
   let query = format!(
-    "SELECT DeviceID, DriverProvider FROM Win32_PnPEntity WHERE DeviceID LIKE '%VID_{0:04X}%' AND DeviceID LIKE '%PID_{1:04X}%'",
+    "SELECT DeviceID, DriverProvider FROM Win32_PnPEntity WHERE DeviceID LIKE '%VID\\_{0:04X}%' AND DeviceID LIKE '%PID\\_{1:04X}%'",
     vendor_id, product_id
   );
 
+  println!("Executing WMI query: {}", query);
   let devices: Vec<WmiPnPEntity> = wmi_connection.raw_query(&query)?;
 
-  // Check if any of the matching devices use WinUSB
   for device in devices {
     if let Some(driver_provider) = device.driver_provider {
       if driver_provider.contains("WinUSB") {
@@ -458,7 +535,6 @@ pub struct DriverInfo {
 
 #[tauri::command(rename_all = "snake_case")]
 fn get_driver_info(vendor_id: Option<u16>, product_id: Option<u16>) -> Result<Vec<DriverInfo>, String> {
-  // If specific VID/PID is provided, first check if the device is connected
   if let (Some(vid), Some(pid)) = (vendor_id, product_id) {
     let is_connected = match rusb::Context::new() {
       Ok(context) => match context.devices() {
@@ -474,13 +550,11 @@ fn get_driver_info(vendor_id: Option<u16>, product_id: Option<u16>) -> Result<Ve
       Err(_) => false,
     };
 
-    // If device isn't connected, return empty result without doing WMI query
     if !is_connected {
       return Ok(vec![]);
     }
   }
 
-  // Device is connected or we're doing a general query, proceed with WMI
   let wmi_con = unsafe { wmi::COMLibrary::assume_initialized() };
   
   let wmi_connection = match wmi::WMIConnection::new(wmi_con) {
@@ -488,7 +562,6 @@ fn get_driver_info(vendor_id: Option<u16>, product_id: Option<u16>) -> Result<Ve
     Err(e) => return Err(format!("Failed to initialize WMI: {}", e)),
   };
 
-  // Construct the query based on whether we have vendor_id and product_id
   let query = match (vendor_id, product_id) {
     (Some(vid), Some(pid)) => format!(
       "SELECT DeviceID, Name, DriverProvider, DriverVersion, DriverDate FROM Win32_PnPEntity WHERE DeviceID LIKE '%VID_{0:04X}%' AND DeviceID LIKE '%PID_{1:04X}%'",
@@ -503,7 +576,6 @@ fn get_driver_info(vendor_id: Option<u16>, product_id: Option<u16>) -> Result<Ve
       pid
     ),
     (None, None) => {
-      // If no VID/PID provided, get all USB devices
       "SELECT DeviceID, Name, DriverProvider, DriverVersion, DriverDate FROM Win32_PnPEntity WHERE DeviceID LIKE '%USB%'".to_string()
     }
   };
@@ -534,7 +606,6 @@ fn get_driver_info(vendor_id: Option<u16>, product_id: Option<u16>) -> Result<Ve
     }
   };
 
-  // If no devices were found, we should still return an empty array rather than an error
   let driver_info: Vec<DriverInfo> = devices
     .into_iter()
     .map(|device| {
